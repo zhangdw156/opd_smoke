@@ -57,7 +57,7 @@ Terminal 2, student training:
 cd /data/zhangdw12/work/opd_smoke
 source configs/env.sh
 
-CUDA_VISIBLE_DEVICES=0 NUM_PROCESSES=1 MAX_STEPS=640 PER_DEVICE_TRAIN_BATCH_SIZE=2 GRADIENT_ACCUMULATION_STEPS=8 GENERATION_BATCH_SIZE=16 MAX_COMPLETION_LENGTH=256 LOSS_TOP_K=1 BETA=1.0 LMBDA=1.0 TEACHER_MODEL_SERVER_URL=http://127.0.0.1:8000 bash scripts/trl_opd/run_train.sh
+CUDA_VISIBLE_DEVICES=0 NUM_PROCESSES=1 MAX_STEPS=640 LR=1e-6 PER_DEVICE_TRAIN_BATCH_SIZE=2 GRADIENT_ACCUMULATION_STEPS=8 GENERATION_BATCH_SIZE=16 MAX_COMPLETION_LENGTH=256 LOSS_TOP_K=1 BETA=1.0 LMBDA=1.0 TEACHER_MODEL_SERVER_URL=http://127.0.0.1:8000 bash scripts/trl_opd/run_train.sh
 ```
 
 With the defaults above, effective global batch size is:
@@ -71,6 +71,7 @@ For multiple training GPUs, set `CUDA_VISIBLE_DEVICES` and `NUM_PROCESSES` consi
 
 ## Tuning Knobs
 
+- Start reverse-KL OPD with `LR=1e-6`; raise it only after `grad_norm` is finite for a short run.
 - Increase throughput first with `GENERATION_BATCH_SIZE`, then `PER_DEVICE_TRAIN_BATCH_SIZE`, then `GRADIENT_ACCUMULATION_STEPS`.
 - If student training OOMs, lower `PER_DEVICE_TRAIN_BATCH_SIZE` or set `MAX_COMPLETION_LENGTH=128`.
 - If teacher server OOMs, lower `TEACHER_GPU_MEMORY_UTILIZATION` or `TEACHER_MAX_MODEL_LEN`.

@@ -79,7 +79,7 @@ accelerate launch --num_processes "$NUM_PROCESSES" scripts/trl_opd/train.py \
   --num_generations "$NUM_GENERATIONS" \
   --max_prompt_length "${MAX_PROMPT_LENGTH:-512}" \
   --max_completion_length "${MAX_COMPLETION_LENGTH:-256}" \
-  --lr "${LR:-2e-4}" \
+  --lr "${LR:-1e-6}" \
   --temperature "${TEMPERATURE:-1.0}" \
   --top_p "${TOP_P:-0.95}" \
   --top_k "${TOP_K:-0}" \
