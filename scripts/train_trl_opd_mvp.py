@@ -391,14 +391,6 @@ def main() -> None:
 
         if swanlab is not None:
             swanlab.log(metrics, step=step)
-            if step == 0 or (step + 1) % args.save_every == 0:
-                swanlab.log(
-                    {
-                        "sample/prompt": prompt[:2000],
-                        "sample/completion": completion[:2000],
-                    },
-                    step=step,
-                )
 
         if (step + 1) % args.save_every == 0:
             save_adapter(student, tokenizer, output_dir / f"step_{step + 1}")
