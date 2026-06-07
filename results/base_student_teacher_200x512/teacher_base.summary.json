@@ -1,0 +1,11 @@
+{
+  "model": "/data/zhangdw12/models/Qwen2.5-7B-Instruct",
+  "adapter_dir": null,
+  "test_file": "/data/zhangdw12/datasets/gsm8k/test.parquet",
+  "limit": 200,
+  "batch_size": 8,
+  "max_new_tokens": 512,
+  "correct": 189,
+  "total": 200,
+  "accuracy": 0.945
+}

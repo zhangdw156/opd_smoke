@@ -1,0 +1,20 @@
+name: base_student_teacher_200x512
+task: gsm8k
+split: test
+limit: 200
+seed: 42
+batch_size: 8
+max_new_tokens: 512
+models:
+  student: /data/zhangdw12/models/Qwen2.5-3B-Instruct
+  teacher: /data/zhangdw12/models/Qwen2.5-7B-Instruct
+results:
+  student:
+    correct: 167
+    total: 200
+    accuracy: 0.835
+  teacher:
+    correct: 189
+    total: 200
+    accuracy: 0.945
+raw_output_dir: runs/eval_base_student_teacher_200x512_20260607_220150
