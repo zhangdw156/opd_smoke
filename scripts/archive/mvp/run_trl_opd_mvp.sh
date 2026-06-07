@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+PROJECT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)
 source "$PROJECT_ROOT/configs/env.sh"
 
 cd "$PROJECT_ROOT"
@@ -39,7 +39,7 @@ if [[ ! -f "$DATA_ROOT/train.parquet" ]]; then
   exit 1
 fi
 
-python scripts/train_trl_opd_mvp.py \
+python scripts/archive/mvp/train_trl_opd_mvp.py \
   --student_model "$STUDENT_MODEL" \
   --teacher_model "$TEACHER_MODEL" \
   --train_file "$DATA_ROOT/train.parquet" \

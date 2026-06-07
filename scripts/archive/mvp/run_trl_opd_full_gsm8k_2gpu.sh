@@ -46,4 +46,4 @@ echo "TOP_P=$TOP_P"
 echo "TOP_K=$TOP_K"
 echo "SWANLAB_MODE=$SWANLAB_MODE"
 
-bash scripts/run_trl_opd_mvp.sh
+bash scripts/archive/mvp/run_trl_opd_mvp.sh

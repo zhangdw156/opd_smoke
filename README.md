@@ -2,7 +2,7 @@
 
 This repository contains a formal TRL OPD training path for distilling a local Qwen2.5-7B teacher into a local Qwen2.5-3B student on GSM8K.
 
-The formal OPD scripts are isolated under `scripts/trl_opd/`. They reuse the same model, dataset, log, and checkpoint paths defined in `configs/env.sh`, which is also used by the MVP scripts. The MVP scripts remain separate and should not be used as the training implementation for this workflow.
+The active OPD workflow is isolated under `scripts/trl_opd/`. It reuses the model, dataset, log, and checkpoint paths defined in `configs/env.sh`. The earlier MVP scripts have been moved to `scripts/archive/mvp/` for reference only.
 
 ## Formal TRL OPD
 
@@ -19,7 +19,7 @@ The formal OPD scripts are isolated under `scripts/trl_opd/`. They reuse the sam
 - `scripts/trl_opd/run_teacher_server.sh`: starts the teacher vLLM server
 - `scripts/trl_opd/run_train.sh`: starts TRL OPD training
 - `scripts/trl_opd/train.py`: repo-local Python wrapper around `DistillationTrainer`
-- `scripts/*mvp*`: old MVP path, kept separate
+- `scripts/archive/mvp/`: archived MVP scripts, kept for reference only
 
 ## Server Setup
 
