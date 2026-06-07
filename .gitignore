@@ -1,0 +1,21 @@
+# Runtime artifacts
+logs/
+checkpoints/
+swanlab/
+ray_tmp/
+cache/
+runs/
+
+# Python / shell noise
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.swp
+*.swo
+.DS_Store
+
+# Secrets
+.env
+*.secret
+*.key
