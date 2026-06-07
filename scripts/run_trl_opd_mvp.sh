@@ -61,4 +61,3 @@ python scripts/train_trl_opd_mvp.py \
   --teacher_device "${TEACHER_DEVICE:-cuda:1}" \
   --seed "${SEED:-42}" \
   2>&1 | tee "$LOG_FILE"
-

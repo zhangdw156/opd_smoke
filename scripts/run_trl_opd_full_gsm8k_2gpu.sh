@@ -9,7 +9,7 @@ source .venv_trl/bin/activate
 export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0,1}
 
 export SWANLAB_MODE=${SWANLAB_MODE:-cloud}
-export RUN_NAME=${RUN_NAME:-qwen25_3b_from_7b_gsm8k_trl_opd_full_2gpu}
+export RUN_NAME=${RUN_NAME:-qwen25_3b_from_7b_gsm8k_trl_opd_topk_full_2gpu}
 export STUDENT_DEVICE=${STUDENT_DEVICE:-cuda:0}
 export TEACHER_DEVICE=${TEACHER_DEVICE:-cuda:1}
 
@@ -28,6 +28,7 @@ export LORA_ALPHA=${LORA_ALPHA:-32}
 export LR=${LR:-1e-5}
 export TEMPERATURE=${TEMPERATURE:-1.0}
 export TOP_P=${TOP_P:-0.95}
+export TOP_K=${TOP_K:-64}
 
 echo "RUN_NAME=$RUN_NAME"
 echo "CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES"
@@ -42,6 +43,7 @@ echo "LORA_ALPHA=$LORA_ALPHA"
 echo "LR=$LR"
 echo "TEMPERATURE=$TEMPERATURE"
 echo "TOP_P=$TOP_P"
+echo "TOP_K=$TOP_K"
 echo "SWANLAB_MODE=$SWANLAB_MODE"
 
 bash scripts/run_trl_opd_mvp.sh
