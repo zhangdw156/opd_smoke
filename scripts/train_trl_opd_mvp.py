@@ -48,6 +48,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--lr", type=float, default=1e-5)
     parser.add_argument("--temperature", type=float, default=1.0)
     parser.add_argument("--top_p", type=float, default=0.95)
+    parser.add_argument("--top_k", type=int, default=64, help="Teacher top-k tokens used for approximate KL")
 
     parser.add_argument("--lora_rank", type=int, default=16)
     parser.add_argument("--lora_alpha", type=int, default=32)
@@ -169,55 +170,68 @@ def save_adapter(student, tokenizer, save_dir: Path) -> None:
     print(f"[save] {save_dir}")
 
 
-def compute_response_kl(
+
+def compute_response_topk_kl(
     student,
     teacher,
     seq: torch.Tensor,
     prompt_len: int,
     total_len: int,
     common_vocab: int,
+    top_k: int,
     temperature: float,
     student_device: str,
     teacher_device: str,
 ) -> torch.Tensor:
     """
-    Computes KL(teacher || student) only on response target tokens.
+    Approximate KL(teacher || student) on response target tokens only,
+    restricted to teacher top-k token ids.
 
     Causal LM convention:
     - logits[:, t, :] predicts input_ids[:, t + 1].
-    - Therefore logits[:, :-1, :] correspond to target token positions 1..total_len-1.
-    - Response target tokens are positions >= prompt_len.
+    - Response target token positions are prompt_len..total_len-1.
+    - Corresponding logit indices are prompt_len-1..total_len-2.
     """
+    if top_k <= 0:
+        raise ValueError("--top_k must be positive")
+
+    start = prompt_len - 1
+    end = total_len - 1
+
+    if start < 0 or end <= start:
+        raise RuntimeError(
+            f"Invalid response logit span: prompt_len={prompt_len}, total_len={total_len}, start={start}, end={end}"
+        )
+
+    k = min(top_k, common_vocab)
+
     student_seq = seq.to(student_device)
     teacher_seq = seq.to(teacher_device)
 
     with torch.no_grad():
-        teacher_logits = teacher(teacher_seq).logits[:, :-1, :]
-        teacher_logits = teacher_logits.to(student_device)
+        # Slice to common vocab first so teacher-only padded vocab ids are never selected.
+        teacher_response_logits = teacher(teacher_seq).logits[:, start:end, :common_vocab].squeeze(0)
+        teacher_topk_logits, teacher_topk_ids = torch.topk(
+            teacher_response_logits.float(),
+            k=k,
+            dim=-1,
+        )
+        teacher_topk_logits = teacher_topk_logits.to(student_device)
+        teacher_topk_ids = teacher_topk_ids.to(student_device)
 
-    student_logits = student(student_seq).logits[:, :-1, :]
-
-    target_positions = torch.arange(1, total_len, device=student_device)
-    response_mask = target_positions >= prompt_len
-
-    s_logits = student_logits[0, response_mask, :]
-    t_logits = teacher_logits[0, response_mask, :]
-
-    if s_logits.numel() == 0 or t_logits.numel() == 0:
-        raise RuntimeError("No response logits available for KL computation")
+    # Gather student logits only at teacher-selected top-k ids.
+    student_response_logits = student(student_seq).logits[:, start:end, :].squeeze(0)
+    student_topk_logits = torch.gather(
+        student_response_logits.float(),
+        dim=-1,
+        index=teacher_topk_ids,
+    )
 
     temp = temperature
+    teacher_probs = F.softmax(teacher_topk_logits / temp, dim=-1)
+    student_log_probs = F.log_softmax(student_topk_logits / temp, dim=-1)
 
-    # Student log-probs are normalized over the student's full output head.
-    # Then slice to shared vocab range. This penalizes mass on student-only extra slots.
-    s_log_probs = F.log_softmax(s_logits.float() / temp, dim=-1)[..., :common_vocab]
-
-    # Teacher probs are normalized over the teacher's full output head.
-    # Then slice and re-normalize so KL target sums to 1 over shared vocab.
-    t_probs = F.softmax(t_logits.float() / temp, dim=-1)[..., :common_vocab]
-    t_probs = t_probs / t_probs.sum(dim=-1, keepdim=True).clamp_min(1e-12)
-
-    loss = F.kl_div(s_log_probs, t_probs, reduction="batchmean") * (temp**2)
+    loss = F.kl_div(student_log_probs, teacher_probs, reduction="batchmean") * (temp**2)
     return loss
 
 
@@ -229,6 +243,9 @@ def main() -> None:
 
     if args.temperature <= 0:
         raise ValueError("--temperature must be positive.")
+
+    if args.top_k <= 0:
+        raise ValueError("--top_k must be positive.")
 
     if not torch.cuda.is_available():
         raise RuntimeError("CUDA is required for this MVP.")
@@ -242,6 +259,7 @@ def main() -> None:
     print(f"[info] dtype={dtype}")
     print(f"[info] student_device={args.student_device}")
     print(f"[info] teacher_device={args.teacher_device}")
+    print(f"[info] top_k={args.top_k}")
 
     tokenizer = AutoTokenizer.from_pretrained(
         args.student_model,
@@ -293,7 +311,7 @@ def main() -> None:
         print(
             f"[warn] vocab/head size mismatch: "
             f"student={student_vocab}, teacher={teacher_vocab}; "
-            f"KL will use common_vocab={common_vocab}"
+            f"top-k KL will use common_vocab={common_vocab}"
         )
 
     optimizer = torch.optim.AdamW(student.parameters(), lr=args.lr)
@@ -307,7 +325,7 @@ def main() -> None:
 
     swanlab, _ = init_swanlab(args)
 
-    progress = tqdm(range(args.max_steps), desc="OPD MVP")
+    progress = tqdm(range(args.max_steps), desc="OPD top-k MVP")
 
     for step in progress:
         row = df.iloc[step % len(df)].to_dict()
@@ -344,13 +362,14 @@ def main() -> None:
             continue
 
         try:
-            loss = compute_response_kl(
+            loss = compute_response_topk_kl(
                 student=student,
                 teacher=teacher,
                 seq=seq,
                 prompt_len=prompt_len,
                 total_len=total_len,
                 common_vocab=common_vocab,
+                top_k=args.top_k,
                 temperature=args.temperature,
                 student_device=args.student_device,
                 teacher_device=args.teacher_device,
@@ -377,6 +396,7 @@ def main() -> None:
             "train/common_vocab": int(common_vocab),
             "train/student_vocab": int(student_vocab),
             "train/teacher_vocab": int(teacher_vocab),
+            "train/top_k": int(args.top_k),
             "train/lr": float(args.lr),
         }
 
@@ -391,14 +411,6 @@ def main() -> None:
 
         if swanlab is not None:
             swanlab.log(metrics, step=step)
-            if step == 0 or (step + 1) % args.save_every == 0:
-                swanlab.log(
-                    {
-                        "sample/prompt": prompt[:2000],
-                        "sample/completion": completion[:2000],
-                    },
-                    step=step,
-                )
 
         if (step + 1) % args.save_every == 0:
             save_adapter(student, tokenizer, output_dir / f"step_{step + 1}")

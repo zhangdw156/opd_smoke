@@ -53,6 +53,7 @@ python scripts/train_trl_opd_mvp.py \
   --lr "${LR:-1e-5}" \
   --temperature "${TEMPERATURE:-1.0}" \
   --top_p "${TOP_P:-0.95}" \
+  --top_k "${TOP_K:-64}" \
   --lora_rank "${LORA_RANK:-16}" \
   --lora_alpha "${LORA_ALPHA:-32}" \
   --lora_dropout "${LORA_DROPOUT:-0.05}" \
