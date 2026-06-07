@@ -3,10 +3,10 @@ set -euo pipefail
 
 cd /data/zhangdw12/work/opd_smoke
 
+export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0,1}
+
 source configs/env.sh
 source .venv_trl/bin/activate
-
-export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0,1}
 
 export SWANLAB_MODE=${SWANLAB_MODE:-cloud}
 export RUN_NAME=${RUN_NAME:-qwen25_3b_from_7b_gsm8k_trl_opd_topk_full_2gpu}
