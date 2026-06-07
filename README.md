@@ -1,45 +1,79 @@
 # opd_smoke
 
-Minimal on-policy distillation MVP for distilling a local Qwen2.5-7B teacher into a local Qwen2.5-3B student on GSM8K.
+This repository contains a formal TRL OPD training path for distilling a local Qwen2.5-7B teacher into a local Qwen2.5-3B student on GSM8K.
 
-## Current implementation
+The formal OPD scripts are isolated under `scripts/trl_opd/`. They reuse the same model, dataset, log, and checkpoint paths defined in `configs/env.sh`, which is also used by the MVP scripts. The MVP scripts remain separate and should not be used as the training implementation for this workflow.
 
-- Framework: PyTorch + Transformers + PEFT + TRL ecosystem
-- Student: local Qwen2.5-3B-Instruct
-- Teacher: local Qwen2.5-7B-Instruct
-- Data: local GSM8K parquet
-- Logging: SwanLab
-- Training: student on-policy generation + token-level teacher KL on generated response tokens
-- Output: LoRA adapters saved under `checkpoints/`
+## Formal TRL OPD
+
+- Trainer: TRL `experimental.distillation.DistillationTrainer`
+- Objective: on-policy reverse KL with `BETA=1.0` and `LMBDA=1.0`
+- Teacher scoring: TRL vLLM server via `trl vllm-serve`
+- Student updates: LoRA adapters saved under `checkpoints/`
+- Data and model paths: inherited from `configs/env.sh`
 
 ## Layout
 
-- `configs/`: environment variables and local paths
-- `scripts/`: setup and training scripts
-- `logs/`: ignored runtime logs
-- `checkpoints/`: ignored model outputs
-- `swanlab/`: ignored SwanLab local records
-- `cache/`: ignored local caches
-- `runs/`: ignored run artifacts
+- `configs/env.sh`: shared local paths for project, models, data, logs, checkpoints, cache, and SwanLab
+- `scripts/trl_opd/setup_env.sh`: server-only environment setup for formal TRL OPD
+- `scripts/trl_opd/run_teacher_server.sh`: starts the teacher vLLM server
+- `scripts/trl_opd/run_train.sh`: starts TRL OPD training
+- `scripts/trl_opd/train.py`: repo-local Python wrapper around `DistillationTrainer`
+- `scripts/*mvp*`: old MVP path, kept separate
 
-## Setup
+## Server Setup
+
+Run this on the H20 server only:
 
 ```bash
 cd /data/zhangdw12/work/opd_smoke
-bash scripts/setup_trl_env.sh
-Run a tiny OPD MVP
+bash scripts/trl_opd/setup_env.sh
+```
+
+This uses the same `.venv_trl` environment path as the existing scripts, but installs the newer TRL/vLLM dependencies required by formal OPD.
+
+## Run TRL OPD
+
+Use two terminals. Put the teacher vLLM server on a GPU that is not used by the training process.
+
+Terminal 1, teacher server:
+
+```bash
 cd /data/zhangdw12/work/opd_smoke
 source configs/env.sh
 
-MAX_STEPS=5 \
-MAX_NEW_TOKENS=128 \
-SAVE_EVERY=5 \
-bash scripts/run_trl_opd_mvp.sh
-Run the default MVP
+TEACHER_CUDA_VISIBLE_DEVICES=1 TEACHER_SERVER_PORT=8000 TEACHER_MAX_MODEL_LEN=1024 bash scripts/trl_opd/run_teacher_server.sh
+```
+
+Terminal 2, student training:
+
+```bash
 cd /data/zhangdw12/work/opd_smoke
 source configs/env.sh
-bash scripts/run_trl_opd_mvp.sh
-Expected outputs
-Logs: logs/
-LoRA adapters: checkpoints/
-SwanLab records: swanlab/
+
+CUDA_VISIBLE_DEVICES=0 NUM_PROCESSES=1 MAX_STEPS=640 PER_DEVICE_TRAIN_BATCH_SIZE=2 GRADIENT_ACCUMULATION_STEPS=8 GENERATION_BATCH_SIZE=16 MAX_COMPLETION_LENGTH=256 LOSS_TOP_K=1 BETA=1.0 LMBDA=1.0 TEACHER_MODEL_SERVER_URL=http://127.0.0.1:8000 bash scripts/trl_opd/run_train.sh
+```
+
+With the defaults above, effective global batch size is:
+
+```text
+NUM_PROCESSES * PER_DEVICE_TRAIN_BATCH_SIZE * GRADIENT_ACCUMULATION_STEPS
+= 1 * 2 * 8 = 16
+```
+
+For multiple training GPUs, set `CUDA_VISIBLE_DEVICES` and `NUM_PROCESSES` consistently. For example, `CUDA_VISIBLE_DEVICES=0,1 NUM_PROCESSES=2` with the same per-device batch and accumulation gives global batch size `32`. Keep the teacher server on another GPU, for example `TEACHER_CUDA_VISIBLE_DEVICES=2`.
+
+## Tuning Knobs
+
+- Increase throughput first with `GENERATION_BATCH_SIZE`, then `PER_DEVICE_TRAIN_BATCH_SIZE`, then `GRADIENT_ACCUMULATION_STEPS`.
+- If student training OOMs, lower `PER_DEVICE_TRAIN_BATCH_SIZE` or set `MAX_COMPLETION_LENGTH=128`.
+- If teacher server OOMs, lower `TEACHER_GPU_MEMORY_UTILIZATION` or `TEACHER_MAX_MODEL_LEN`.
+- `BETA=1.0` is reverse KL, the OPD objective.
+- `LOSS_TOP_K=1` is required by TRL's teacher-server path when `BETA>0`.
+- `LMBDA=1.0` means fully on-policy. Lower values require dataset assistant completions and are not the default for this GSM8K prompt-only path.
+
+## Expected Outputs
+
+- Logs: `logs/`
+- LoRA adapters: `checkpoints/`
+- SwanLab records: `swanlab/`
