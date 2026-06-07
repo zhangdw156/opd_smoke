@@ -1,0 +1,26 @@
+[project]
+name = "opd-smoke"
+version = "0.1.0"
+description = "TRL OPD training scripts for Qwen2.5 GSM8K distillation."
+requires-python = ">=3.10,<3.11"
+dependencies = [
+  "accelerate>=1.6,<2",
+  "datasets>=4.7,<5",
+  "kernels",
+  "ninja",
+  "packaging>20",
+  "pandas",
+  "peft>=0.15,<1",
+  "pyarrow",
+  "swanlab",
+  "torch==2.8.0",
+  "torchaudio==2.8.0",
+  "torchvision==0.23.0",
+  "tqdm",
+  "transformers>=4.56.2,<5",
+  "trl==1.1.0",
+  "vllm==0.11.0",
+]
+
+[tool.uv]
+package = false

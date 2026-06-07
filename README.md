@@ -27,10 +27,16 @@ Run this on the H20 server only:
 
 ```bash
 cd /data/zhangdw12/work/opd_smoke
+UV_PROJECT_ENVIRONMENT=.venv_trl uv sync --python 3.10
+```
+
+Or use the wrapper, which runs the same sync and then performs an import/CUDA self-check:
+
+```bash
 bash scripts/trl_opd/setup_env.sh
 ```
 
-This uses the same `.venv_trl` environment path as the existing scripts, but installs the newer TRL/vLLM dependencies required by formal OPD.
+Dependencies are declared in `pyproject.toml`; the environment path remains `.venv_trl`, matching the existing scripts.
 
 ## Run TRL OPD
 
