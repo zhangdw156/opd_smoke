@@ -6,6 +6,10 @@ ray_tmp/
 cache/
 runs/
 
+# Local Python envs
+.venv/
+.venv_trl/
+
 # Python / shell noise
 __pycache__/
 *.pyc
@@ -19,7 +23,3 @@ __pycache__/
 .env
 *.secret
 *.key
-
-# Local Python envs
-.venv/
-.venv_trl/

@@ -24,11 +24,18 @@ uv pip install \
   pandas pyarrow swanlab tqdm
 
 python - <<'PY'
-import torch, transformers, peft, trl, swanlab
+import torch
+import transformers
+import peft
+import trl
+import swanlab
+
 print("torch:", torch.__version__)
 print("cuda:", torch.cuda.is_available(), torch.cuda.device_count())
 print("transformers:", transformers.__version__)
 print("trl:", trl.__version__)
 print("swanlab: ok")
-assert torch.cuda.is_available()
+
+assert torch.cuda.is_available(), "CUDA is not available"
+assert torch.__version__.endswith("+cu124"), f"Unexpected torch build: {torch.__version__}"
 PY
