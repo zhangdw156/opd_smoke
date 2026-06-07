@@ -19,3 +19,7 @@ __pycache__/
 .env
 *.secret
 *.key
+
+# Local Python envs
+.venv/
+.venv_trl/
